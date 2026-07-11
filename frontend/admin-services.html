@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QueueSmart - Service Management</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <h2 class="page-title">Service management</h2>
+    <p class="page-sub">Create new services or edit existing ones.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3 id="formTitle">Create service</h3>
+
+        <div class="form-group">
+          <label for="svcName">Service name *</label>
+          <input type="text" id="svcName" maxlength="100">
+          <div class="char-hint">Max 100 characters.</div>
+          <div class="error"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="svcDesc">Description *</label>
+          <textarea id="svcDesc" rows="3"></textarea>
+          <div class="error"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="svcDuration">Expected duration (minutes) *</label>
+          <input type="number" id="svcDuration" min="1" max="480">
+          <div class="error"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="svcPriority">Priority level</label>
+          <select id="svcPriority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+          <div class="error"></div>
+        </div>
+
+        <button class="btn" id="saveBtn" onclick="saveService()">Create service</button>
+        <button class="btn secondary" id="cancelBtn" onclick="resetForm()" style="display:none;">Cancel</button>
+      </div>
+
+      <div class="card">
+        <h3>Existing services</h3>
+        <div id="serviceList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    requireLogin("admin");
+    renderNavbar("admin-services.html");
+
+    let editingId = null; // null = creating a new one
+
+    function render() {
+      const services = getData("qs_services");
+      document.getElementById("serviceList").innerHTML = services
+        .map(function (s) {
+          return '<div class="service-row"><div class="info">' +
+            "<h4>" + s.name + ' <span class="badge ' + s.priority + '">' + s.priority + "</span></h4>" +
+            "<p>" + s.description + "</p>" +
+            '<p class="muted">~' + s.duration + " min per person</p>" +
+            "</div>" +
+            '<button class="btn small secondary" onclick="startEdit(' + s.id + ')">Edit</button></div>';
+        })
+        .join("");
+    }
+
+    function startEdit(id) {
+      const svc = getData("qs_services").find(function (s) { return s.id === id; });
+      editingId = id;
+      document.getElementById("svcName").value = svc.name;
+      document.getElementById("svcDesc").value = svc.description;
+      document.getElementById("svcDuration").value = svc.duration;
+      document.getElementById("svcPriority").value = svc.priority;
+      document.getElementById("formTitle").textContent = "Edit service";
+      document.getElementById("saveBtn").textContent = "Save changes";
+      document.getElementById("cancelBtn").style.display = "inline-block";
+      window.scrollTo(0, 0);
+    }
+
+    function resetForm() {
+      editingId = null;
+      ["svcName", "svcDesc", "svcDuration"].forEach(function (id) {
+        const el = document.getElementById(id);
+        el.value = "";
+        clearInvalid(el);
+      });
+      document.getElementById("svcPriority").value = "medium";
+      document.getElementById("formTitle").textContent = "Create service";
+      document.getElementById("saveBtn").textContent = "Create service";
+      document.getElementById("cancelBtn").style.display = "none";
+    }
+
+    function saveService() {
+      const name = document.getElementById("svcName");
+      const desc = document.getElementById("svcDesc");
+      const duration = document.getElementById("svcDuration");
+      const priority = document.getElementById("svcPriority");
+      let ok = true;
+
+      [name, desc, duration].forEach(clearInvalid);
+
+      if (name.value.trim() === "") {
+        setInvalid(name, "Service name is required.");
+        ok = false;
+      } else if (name.value.length > 100) {
+        setInvalid(name, "Service name must be 100 characters or less.");
+        ok = false;
+      }
+
+      if (desc.value.trim() === "") {
+        setInvalid(desc, "Description is required.");
+        ok = false;
+      }
+
+      const mins = parseInt(duration.value, 10);
+      if (duration.value === "" || isNaN(mins)) {
+        setInvalid(duration, "Expected duration is required.");
+        ok = false;
+      } else if (mins < 1 || mins > 480) {
+        setInvalid(duration, "Duration must be between 1 and 480 minutes.");
+        ok = false;
+      }
+
+      if (!ok) return;
+
+      const services = getData("qs_services");
+
+      if (editingId !== null) {
+        const svc = services.find(function (s) { return s.id === editingId; });
+        svc.name = name.value.trim();
+        svc.description = desc.value.trim();
+        svc.duration = mins;
+        svc.priority = priority.value;
+        addNotification('Service "' + svc.name + '" was updated.');
+      } else {
+        const newId = Math.max.apply(null, services.map(function (s) { return s.id; })) + 1;
+        services.push({
+          id: newId,
+          name: name.value.trim(),
+          description: desc.value.trim(),
+          duration: mins,
+          priority: priority.value,
+          open: true,
+          queue: []
+        });
+        addNotification('Service "' + name.value.trim() + '" was created.');
+      }
+
+      setData("qs_services", services);
+      renderNotifs();
+      resetForm();
+      render();
+    }
+
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QueueSmart - Queue Status</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <h2 class="page-title">My queue</h2>
+    <p class="page-sub">Live view of your spot in line.</p>
+
+    <div class="card center" id="statusCard"></div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    requireLogin("user");
+    renderNavbar("queue-status.html");
+
+    function render() {
+      const myQueue = getData("qs_myQueue");
+      const card = document.getElementById("statusCard");
+
+      if (!myQueue) {
+        card.innerHTML =
+          '<p class="muted">You are not in a queue right now.</p>' +
+          '<a class="btn mt" href="join-queue.html">Join a queue</a>';
+        return;
+      }
+
+      const services = getData("qs_services");
+      const svc = services.find(function (s) { return s.id === myQueue.serviceId; });
+      const wait = myQueue.position * svc.duration;
+
+      let badge, note;
+      if (myQueue.status === "almost") {
+        badge = '<span class="badge almost">Almost ready</span>';
+        note = "You're next! Head over to " + svc.name + " now.";
+      } else if (myQueue.status === "served") {
+        badge = '<span class="badge served">Served</span>';
+        note = "You've been served. Thanks for using QueueSmart!";
+      } else {
+        badge = '<span class="badge waiting">Waiting</span>';
+        note = "We'll notify you when it's almost your turn.";
+      }
+
+      card.innerHTML =
+        "<h3>" + svc.name + "</h3><br>" +
+        '<div class="position-circle"><span class="num">#' + myQueue.position + '</span><span class="label">in line</span></div>' +
+        "<p>Estimated wait: <strong>~" + wait + " min</strong></p>" +
+        '<p class="mt">' + badge + "</p>" +
+        '<p class="muted mt">' + note + "</p>" +
+        '<div class="mt">' +
+        '<button class="btn secondary small" onclick="simulateUpdate()">Simulate update</button> ' +
+        '<button class="btn danger small" onclick="leaveQueue()">Leave queue</button>' +
+        "</div>" +
+        '<p class="char-hint mt">("Simulate update" stands in for real-time updates that will come from the backend in A3.)</p>';
+    }
+
+    // fakes the queue moving forward since there's no backend yet
+    function simulateUpdate() {
+      const myQueue = getData("qs_myQueue");
+      if (!myQueue) return;
+      const services = getData("qs_services");
+      const svc = services.find(function (s) { return s.id === myQueue.serviceId; });
+
+      if (myQueue.position > 1) {
+        myQueue.position -= 1;
+        // person at the front got served
+        svc.queue.shift();
+        myQueue.status = myQueue.position === 1 ? "almost" : "waiting";
+        if (myQueue.status === "almost") {
+          addNotification("Almost your turn at " + svc.name + "! Please head over.");
+        } else {
+          addNotification("Queue update: you are now #" + myQueue.position + " at " + svc.name + ".");
+        }
+        setData("qs_myQueue", myQueue);
+        setData("qs_services", services);
+      } else {
+        // it's our turn - mark served and move to history
+        svc.queue = svc.queue.filter(function (n) { return n !== "You"; });
+        setData("qs_services", services);
+        localStorage.removeItem("qs_myQueue");
+
+        const hist = getData("qs_history");
+        hist.unshift({ date: new Date().toISOString().slice(0, 10), service: svc.name, outcome: "Served" });
+        setData("qs_history", hist);
+
+        addNotification("You've been served at " + svc.name + ". See you next time!");
+        renderNotifs();
+        const card = document.getElementById("statusCard");
+        card.innerHTML =
+          "<h3>" + svc.name + '</h3><br><span class="badge served">Served</span>' +
+          '<p class="mt">All done! This visit was added to your history.</p>' +
+          '<a class="btn mt" href="history.html">View history</a>';
+        return;
+      }
+      renderNotifs();
+      render();
+    }
+
+    function leaveQueue() {
+      const myQueue = getData("qs_myQueue");
+      const services = getData("qs_services");
+      const svc = services.find(function (s) { return s.id === myQueue.serviceId; });
+      svc.queue = svc.queue.filter(function (n) { return n !== "You"; });
+      setData("qs_services", services);
+      localStorage.removeItem("qs_myQueue");
+
+      const hist = getData("qs_history");
+      hist.unshift({ date: new Date().toISOString().slice(0, 10), service: svc.name, outcome: "Left queue" });
+      setData("qs_history", hist);
+
+      addNotification("You left the queue for " + svc.name + ".");
+      renderNotifs();
+      render();
+    }
+
+    render();
+  </script>
+</body>
+</html>

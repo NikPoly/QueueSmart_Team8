@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QueueSmart - Admin Dashboard</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <h2 class="page-title">Admin dashboard</h2>
+    <p class="page-sub">Overview of every service and its queue.</p>
+
+    <div class="grid-3">
+      <div class="card stat">
+        <div class="num" id="statTotal">0</div>
+        <div class="label">Total services</div>
+      </div>
+      <div class="card stat">
+        <div class="num" id="statOpen">0</div>
+        <div class="label">Open queues</div>
+      </div>
+      <div class="card stat">
+        <div class="num" id="statWaiting">0</div>
+        <div class="label">People waiting</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Services</h3>
+      <table>
+        <thead>
+          <tr><th>Service</th><th>Priority</th><th>In line</th><th>Status</th><th>Quick action</th></tr>
+        </thead>
+        <tbody id="serviceBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    requireLogin("admin");
+    renderNavbar("admin-dashboard.html");
+
+    function render() {
+      const services = getData("qs_services");
+
+      document.getElementById("statTotal").textContent = services.length;
+      document.getElementById("statOpen").textContent =
+        services.filter(function (s) { return s.open; }).length;
+      document.getElementById("statWaiting").textContent =
+        services.reduce(function (sum, s) { return sum + s.queue.length; }, 0);
+
+      document.getElementById("serviceBody").innerHTML = services
+        .map(function (s) {
+          const status = s.open
+            ? '<span class="badge open">Open</span>'
+            : '<span class="badge closed">Closed</span>';
+          const action = s.open
+            ? '<button class="btn small danger" onclick="toggleQueue(' + s.id + ')">Close queue</button>'
+            : '<button class="btn small" onclick="toggleQueue(' + s.id + ')">Open queue</button>';
+          return "<tr><td>" + s.name + "</td>" +
+            '<td><span class="badge ' + s.priority + '">' + s.priority + "</span></td>" +
+            "<td>" + s.queue.length + "</td><td>" + status + "</td><td>" + action + "</td></tr>";
+        })
+        .join("");
+    }
+
+    function toggleQueue(id) {
+      const services = getData("qs_services");
+      const svc = services.find(function (s) { return s.id === id; });
+      svc.open = !svc.open;
+      setData("qs_services", services);
+      addNotification("Queue for " + svc.name + " is now " + (svc.open ? "open" : "closed") + ".");
+      renderNotifs();
+      render();
+    }
+
+    render();
+  </script>
+</body>
+</html>
