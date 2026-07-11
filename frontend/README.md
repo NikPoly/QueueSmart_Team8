@@ -8,7 +8,7 @@ Front-end implementation of the QueueSmart smart queue management app. This assi
 
 No build step needed. Either:
 
-1. Open `index.html` directly in a browser, or
+1. Open `index.html` directly in a browser (opening in edge should mainly work) , or
 2. Run a simple local server from the project folder:
    ```
    python -m http.server 8000
