@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QueueSmart - Dashboard</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <h2 class="page-title" id="greeting">Dashboard</h2>
+    <p class="page-sub">Here's what's happening right now.</p>
+
+    <div class="grid-3">
+      <div class="card stat">
+        <div class="num" id="statPosition">-</div>
+        <div class="label">Your queue position</div>
+      </div>
+      <div class="card stat">
+        <div class="num" id="statServices">0</div>
+        <div class="label">Services open now</div>
+      </div>
+      <div class="card stat">
+        <div class="num" id="statUnread">0</div>
+        <div class="label">Unread notifications</div>
+      </div>
+    </div>
+
+    <div class="card" id="currentQueueCard">
+      <h3>Current queue</h3>
+      <div id="currentQueueBody"></div>
+    </div>
+
+    <div class="card">
+      <h3>Active services</h3>
+      <div id="serviceList"></div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    const session = requireLogin("user");
+    renderNavbar("dashboard.html");
+    document.getElementById("greeting").textContent = "Welcome back, " + session.name.split(" ")[0];
+
+    const services = getData("qs_services");
+    const myQueue = getData("qs_myQueue");
+    const notifs = getData("qs_notifications") || [];
+
+    // stat cards
+    document.getElementById("statServices").textContent =
+      services.filter(function (s) { return s.open; }).length;
+    document.getElementById("statUnread").textContent =
+      notifs.filter(function (n) { return !n.read; }).length;
+    document.getElementById("statPosition").textContent = myQueue ? "#" + myQueue.position : "-";
+
+    // current queue card
+    const body = document.getElementById("currentQueueBody");
+    if (myQueue) {
+      const svc = services.find(function (s) { return s.id === myQueue.serviceId; });
+      const wait = myQueue.position * svc.duration;
+      body.innerHTML =
+        "<p>You are in line for <strong>" + svc.name + "</strong>.</p>" +
+        '<p class="muted">Position #' + myQueue.position + " &middot; est. wait ~" + wait + " min</p>" +
+        '<a class="btn small mt" href="queue-status.html">View status</a>';
+    } else {
+      body.innerHTML =
+        '<p class="muted">You are not in any queue right now.</p>' +
+        '<a class="btn small mt" href="join-queue.html">Join a queue</a>';
+    }
+
+    // open services list
+    document.getElementById("serviceList").innerHTML = services
+      .filter(function (s) { return s.open; })
+      .map(function (s) {
+        const wait = s.queue.length * s.duration;
+        return '<div class="service-row"><div class="info">' +
+          "<h4>" + s.name + "</h4>" +
+          "<p>" + s.queue.length + " in line &middot; ~" + wait + " min wait</p>" +
+          '</div><span class="badge ' + s.priority + '">' + s.priority + "</span></div>";
+      })
+      .join("");
+  </script>
+</body>
+</html>

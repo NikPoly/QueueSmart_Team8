@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QueueSmart - History</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <h2 class="page-title">History</h2>
+    <p class="page-sub">Queues you've joined in the past.</p>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Service</th><th>Outcome</th></tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    requireLogin("user");
+    renderNavbar("history.html");
+
+    const hist = getData("qs_history") || [];
+    const body = document.getElementById("historyBody");
+
+    if (hist.length === 0) {
+      body.innerHTML = '<tr><td colspan="3" class="muted">No history yet. Join a queue to get started.</td></tr>';
+    } else {
+      body.innerHTML = hist
+        .map(function (h) {
+          const cls = h.outcome === "Served" ? "served" : "closed";
+          return "<tr><td>" + h.date + "</td><td>" + h.service + "</td>" +
+            '<td><span class="badge ' + cls + '">' + h.outcome + "</span></td></tr>";
+        })
+        .join("");
+    }
+  </script>
+</body>
+</html>
